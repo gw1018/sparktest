@@ -28,7 +28,8 @@ repositories {
     mavenLocal()
     mavenCentral()
     maven {
-        url "https://oss.sonatype.org/content/repositories/snapshots"
+//        url "https://oss.sonatype.org/content/repositories/snapshots",
+        url "https://dl.bintray.com/spark-packages/maven/"
     }
 }
 
@@ -45,6 +46,8 @@ dependencies {
     compile 'org.apache.spark:spark-catalyst_2.11:2.1.0'
     compile 'org.apache.spark:spark-streaming_2.11:2.1.0'
     compile 'org.apache.spark:spark-core_2.11:2.1.0'
+
+    compile 'harsha2010:magellan:1.0.4-s_2.11'
 
     compile group: 'commons-io', name: 'commons-io', version: '2.5'
 }
