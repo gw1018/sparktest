@@ -9,10 +9,7 @@ import org.apache.spark.sql.types._
 
 import org.apache.spark.sql.functions._
 
-final case class Person(firstName: String, lastName: String,
-                        country: String, age: Int)
-
-final case class UberRecord(tripId: String, timestamp: String, point: Point)
+final case class CaseRecord(caseId: String, timestamp: String, point: Point)
 
 object Main extends InitSpark {
 
@@ -22,43 +19,15 @@ object Main extends InitSpark {
     val version = spark.version
     println("SPARK VERSION = " + version)
 
-//    val sumHundred = spark.range(1, 101).reduce(_ + _)
-//    println(f"Sum 1 to 100 = $sumHundred")
-//
-//    println("Reading from csv file: people-example.csv")
-//    val persons = reader.csv("people-example.csv").as[Person]
-//    persons.show(2)
-//    val averageAge = persons.agg(avg("age"))
-//      .first.get(0).asInstanceOf[Double]
-//    println(f"Average Age: $averageAge%.2f")
-
-    val uber = sc.textFile("all.tsv").map { line =>
-      val parts = line.split("\t" )
-      val tripId = parts(0)
+    val bcase = sc.textFile("bc.csv").map { line =>
+      val parts = line.split("," )
+      val caseId = parts(0)
       val timestamp = parts(1)
-      val point = Point(parts(3).toDouble, parts(2).toDouble)
-      UberRecord(tripId, timestamp, point)
+      val point = Point(parts(14).toDouble, parts(15).toDouble)
+      CaseRecord(caseId, timestamp, point)
     }.repartition(100).toDF().cache()
 
-     uber.show(5)
-
-//    val points = sc.parallelize(Seq((-1.0, -1.0), (-1.0, 1.0), (1.0, -1.0))).toDF("x", "y").select(point($"x", $"y").as("point"))
-//
-//    points.show()
-
-//        val magellanContext = new MagellanContext(sc)
-//        val neighborhoods = magellanContext.read.format("magellan").
-//          load(${neighborhoods.path}).
-//          select($"polygon", $"metadata").
-//          cache()
-
-    //    neighborhoods.
-    //      join(uber).
-    //      where($"point" within $"polygon").
-    //      select($"tripId", $"timestamp", explode($"metadata").as(Seq("k", "v"))).
-    //      withColumnRenamed("v", "neighborhood").
-    //      drop("k").
-    //      show(5)
+    bcase.show(5)
 
     val neighborhoods = sqlContext.read.format("magellan")
       .load("SFNbhd/")
@@ -69,50 +38,22 @@ object Main extends InitSpark {
 
     neighborhoods.printSchema
 
-//    neighborhoods.take(2) // see the first two neighbourhoods
-
-    neighborhoods.select(explode($"metadata").as(Seq("k", "v"))).show(5,false)
-
-//    val transformer: Point => Point = (point: Point) =>
-//    {
-//      val from = new NAD83(Map("zone" -> 403)).from()
-//      val p = point.transform(from)
-////      p.setX((3.28084 * p.getX()))
-////      p.setY(3.28084 * p.getY())
-//      new Point()
-////        newp.setX(3.28084 * p.getX())
-////        newp.setY(3.28084 * p.getY())
-//
-//    }
-
-    val transformer: Point => Point = (point: Point) => {
-      val from = new NAD83(Map("zone" -> 403)).from()
-      val p = point.transform(from)
-      val np = new Point()
-      np.setY(3.28084 * p.getY())
-      np.setX(3.28084 * p.getX())
-      np
-    }
-
-    // add a new column in nad83 coordinates
-    val uberTransformed = uber
-      .withColumn("nad83", $"point".transform(transformer))
-      .cache()
+    neighborhoods.select(explode($"metadata").as(Seq("k", "v"))).show(1,true)
 
     val joined = neighborhoods
-      .join(uberTransformed)
-      .where($"nad83" within $"polygon")
-      .select($"tripId", $"timestamp", explode($"metadata").as(Seq("k", "v")))
-      .withColumnRenamed("v", "neighborhood")
+      .join(bcase)
+      .where($"point" within $"polygon")
+      .select($"caseId", $"timestamp", explode($"metadata").as(Seq("k", "v")))
+      .withColumnRenamed("v", "County")
       .drop("k")
       .cache()
 
     joined
-      .groupBy($"neighborhood")
-      .agg(countDistinct("tripId")
-        .as("trips"))
-      .orderBy(col("trips").desc)
-      .show(5,false)
+      .groupBy($"County")
+      .agg(countDistinct("caseId")
+        .as("cases"))
+      .orderBy(col("cases").desc)
+      .show(100,false)
 
     close
   }
